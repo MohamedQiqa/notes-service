@@ -1,196 +1,291 @@
-```html
-<div align="center">
-```
+```markdown
+<div align="center">📝 Notes Service
 
-# 📝 Notes Service
+A secure, stateless REST API for creating and managing personal notes — built with Kotlin & Spring Boot.
 
-`A secure, stateless REST API for creating and managing personal notes, built with Kotlin and Spring Boot.`
+<br/>Kotlin Spring Boot Spring Security Java <br/> MongoDB JWT Gradle GitHub Actions Nginx
 
-!\[Kotlin]\(https\://img.shields.io/badge/Kotlin-1.9.25-7F52FF?style=for-the-badge\&logo=kotlin\&logoColor=white)
-!\[Spring Boot]\(https\://img.shields.io/badge/Spring\_Boot-3.4.3-6DB33F?style=for-the-badge\&logo=springboot\&logoColor=white)
-!\[Spring Security]\(https\://img.shields.io/badge/Spring\_Security-6DB33F?style=for-the-badge\&logo=springsecurity\&logoColor=white)
-!\[Java]\(https\://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge\&logo=openjdk\&logoColor=white)
-!\[MongoDB]\(https\://img.shields.io/badge/MongoDB-47A248?style=for-the-badge\&logo=mongodb\&logoColor=white)
+<br/>Overview • Features • Architecture • Auth Flow • API • Setup • Deployment
 
-```html
-</div>
-```
+</div>🔎 Overview
 
-## `Overview`
+Notes Service is the backend foundation for a multi-user notes application. It handles account registration and authentication, protects note operations with JWT-based authorization, and persists user-specific data in MongoDB.
 
-`Notes API provides the backend foundation for a multi-user notes application. It manages account registration and authentication, protects note operations with JWT-based authorization, and persists user-specific data in MongoDB.`
+It is designed as a standalone service that any client — web, mobile, or another backend — can plug into over HTTP.
 
-`The service is designed for a clear separation of responsibilities:`
+Layer
 
-- `REST controllers expose the public HTTP contract.`
-- `Spring Security and JWT components enforce stateless authorization.`
-- `MongoDB repositories handle users, notes, and refresh sessions.`
-- `BCrypt protects passwords.`
-- `GitHub Actions and Linux service configuration support automated deployment.`
+Responsibility
 
-## `What the Service Provides`
+🌐 
 
-- `User registration with email format and password strength validation`
-- `Login using BCrypt password verification`
-- `Short-lived JWT access tokens`
-- `Rotating, database-backed refresh tokens`
-- `User-scoped note creation and retrieval`
-- `Note updates through an ID-aware save operation`
-- `Ownership-checked note deletion`
-- `Stateless Spring Security configuration`
-- `Global HTTP validation error responses`
-- `MongoDB TTL cleanup for expired refresh tokens`
-- `Automated packaging and deployment to a Linux server`
+REST Controllers
 
-## `Technology Stack`
+Expose the public HTTP contract
 
-| `Area`             | `Technology`                     |
-| ------------------ | -------------------------------- |
-| `Language`         | `Kotlin 1.9`                     |
-| `Runtime`          | `Java 17`                        |
-| `API framework`    | `Spring Boot 3.4`                |
-| `Security`         | `Spring Security, JJWT`          |
-| `Password hashing` | `BCrypt`                         |
-| `Data store`       | `MongoDB`                        |
-| `Build system`     | `Gradle 8 with Kotlin DSL`       |
-| `Testing`          | `JUnit 5, Spring Boot Test`      |
-| `Reverse proxy`    | `Nginx`                          |
-| `Deployment`       | `GitHub Actions, systemd, rsync` |
+🛡️ 
 
-## `Architecture`
+Spring Security + JWT
 
-```text
-Client
-  |
-  | HTTP + Bearer access token
-  v
-Nginx (reverse proxy)
-  |
-  v
-Spring Boot REST API
-  |
-  +-- AuthController
-  +-- NoteController
-  +-- JwtAuthFilter
-  +-- AuthService / JwtService
-  |
-  v
+Enforce stateless authorization
+
+🗄️ 
+
+MongoDB Repositories
+
+Persist users, notes, and refresh sessions
+
+🔐 
+
+BCrypt
+
+Protect passwords at rest
+
+🚀 
+
+GitHub Actions + systemd
+
+Automate build and deployment
+
+✨ Features
+
+✅ User registration with email format and password strength validation
+
+🔑 Login with BCrypt password verification
+
+⏱️ Short-lived JWT access tokens (15 minutes)
+
+🔄 Rotating refresh tokens (30 days), hashed and stored in the database
+
+👤 User-scoped notes — each user only sees their own data
+
+✏️ Create & update notes through a single ID-aware save operation
+
+🗑️ Ownership-checked deletion
+
+🧹 MongoDB TTL cleanup for expired refresh tokens
+
+⚠️ Structured validation errors for clean client handling
+
+🚀 Automated deployment to a Linux server
+
+🧰 Tech Stack
+
+Area
+
+Technology
+
+Language
+
+Kotlin 1.9
+
+Runtime
+
+Java 17
+
+Framework
+
+Spring Boot 3.4
+
+Security
+
+Spring Security, JJWT
+
+Password hashing
+
+BCrypt
+
+Database
+
 MongoDB
-  +-- users
-  +-- refresh_tokens
-  +-- notes
-```
 
-`Protected endpoints require an access token in the Authorization header:`
+Build
 
-```javascript
+Gradle 8 (Kotlin DSL)
+
+Testing
+
+JUnit 5, Spring Boot Test
+
+Reverse proxy
+
+Nginx
+
+Deployment
+
+GitHub Actions, systemd, rsync
+
+🏗️ Architecture
+
+flowchart TD
+    C[📱 Client<br/>Web / Mobile / Service] -->|HTTP + Bearer token| N[Nginx<br/>Reverse Proxy]
+    N --> F[JwtAuthFilter]
+    F --> AC[AuthController]
+    F --> NC[NoteController]
+    AC --> AS[AuthService / JwtService]
+    AS --> DB[(MongoDB)]
+    NC --> DB
+    DB --- U[users]
+    DB --- R[refresh_tokens]
+    DB --- NO[notes]
+
+
+/auth/** and / are public. All other routes require authentication:
+
 Authorization: Bearer <access-token>
-```
 
-`The /auth/** routes and the / status route are public. All other routes require authentication.`
 
-## `Authentication Flow`
+🔐 Authentication Flow
 
-1. `A user registers with an email and password.`
-2. `The password is hashed with BCrypt before it is stored.`
-3. `Login validates the credentials and issues:`
-   - `an access token valid for 15 minutes`
-   - `a refresh token valid for 30 days`
-4. `Protected requests are authenticated by a JWT filter.`
-5. `Refresh tokens are hashed with SHA-256 and stored in MongoDB.`
-6. `Using a refresh token deletes the consumed token and replaces it with a new pair.`
-7. `MongoDB TTL indexing removes expired refresh-token records.`
+sequenceDiagram
+    participant C as Client
+    participant API as Notes Service
+    participant DB as MongoDB
 
-`This design keeps raw refresh tokens out of the database and prevents reused refresh tokens from producing another token pair.`
+    C->>API: POST /auth/register (email, password)
+    API->>DB: Save user (BCrypt hash)
 
-## `API Reference`
+    C->>API: POST /auth/login
+    API->>DB: Verify credentials
+    API-->>C: accessToken (15 min) + refreshToken (30 days)
+    API->>DB: Store SHA-256 hash of refresh token
 
-### `Status`
+    C->>API: GET /notes (Bearer accessToken)
+    API-->>C: User's notes
 
-| `Method` | `Endpoint` | `Authentication` | `Description`            |
-| -------- | ---------- | ---------------- | ------------------------ |
-| `GET`    | `/`        | `No`             | `Health/status response` |
+    C->>API: POST /auth/refresh (refreshToken)
+    API->>DB: Delete used token, store new hash
+    API-->>C: New token pair
 
-`Example:`
 
-```bash
+🛡️ Raw refresh tokens never touch the database, and a reused refresh token cannot produce another token pair.
+
+📡 API Reference
+
+Base URL: http://localhost:8085
+
+Status
+
+Method
+
+Endpoint
+
+Auth
+
+Description
+
+GET
+
+/
+
+❌
+
+Health / status check
+
 curl http://localhost:8085/
-```
+# Everything cool!
 
-`Response:`
 
-```text
-Everything cool!
-```
+Authentication
 
-### `Authentication`
+Method
 
-| `Method` | `Endpoint`       | `Authentication` | `Description`                         |
-| -------- | ---------------- | ---------------- | ------------------------------------- |
-| `POST`   | `/auth/register` | `No`             | `Create an account`                   |
-| `POST`   | `/auth/login`    | `No`             | `Authenticate and receive token pair` |
-| `POST`   | `/auth/refresh`  | `No`             | `Rotate a refresh token`              |
+Endpoint
 
-#### `Register`
+Auth
 
-```bash
-curl -X POST http://localhost:8085/auth/register \
+Description
+
+POST
+
+/auth/register
+
+❌
+
+Create an account
+
+POST
+
+/auth/login
+
+❌
+
+Authenticate and receive a token pair
+
+POST
+
+/auth/refresh
+
+❌
+
+Rotate a refresh token
+
+<details> <summary><b>Register</b></summary>curl -X POST http://localhost:8085/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "person@example.com",
     "password": "StrongPass123"
   }'
-```
 
-`Password requirements:`
 
-- `Minimum 9 characters`
-- `At least one lowercase character`
-- `At least one uppercase character`
-- `At least one digit`
+Password rules: minimum 9 characters, with at least one lowercase letter, one uppercase letter, and one digit.
 
-#### `Login`
-
-```bash
-curl -X POST http://localhost:8085/auth/login \
+</details> <details> <summary><b>Login</b></summary>curl -X POST http://localhost:8085/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "person@example.com",
     "password": "StrongPass123"
   }'
-```
 
-`Successful response:`
 
-```json
 {
   "accessToken": "<access-token>",
   "refreshToken": "<refresh-token>"
 }
-```
 
-#### `Refresh`
 
-```bash
-curl -X POST http://localhost:8085/auth/refresh \
+</details> <details> <summary><b>Refresh</b></summary>curl -X POST http://localhost:8085/auth/refresh \
   -H "Content-Type: application/json" \
   -d '{ "refreshToken": "<refresh-token>" }'
-```
 
-`The refresh endpoint validates the token type and signature, verifies that the token belongs to an existing user, and confirms that the hashed token is stored in MongoDB.`
 
-### `Notes`
+Validates the token type and signature, confirms the user exists, and checks that the hashed token is stored in MongoDB.
 
-| `Method` | `Endpoint`    | `Authentication` | `Description`                             |
-| -------- | ------------- | ---------------- | ----------------------------------------- |
-| `POST`   | `/notes`      | `Bearer token`   | `Create or update a note`                 |
-| `GET`    | `/notes`      | `Bearer token`   | `Retrieve the authenticated user's notes` |
-| `DELETE` | `/notes/{id}` | `Bearer token`   | `Delete an owned note`                    |
+</details>Notes
 
-`Create a note:`
+Method
 
-```bash
-curl -X POST http://localhost:8085/notes \
+Endpoint
+
+Auth
+
+Description
+
+POST
+
+/notes
+
+🔒 Bearer
+
+Create or update a note
+
+GET
+
+/notes
+
+🔒 Bearer
+
+Get the authenticated user's notes
+
+DELETE
+
+/notes/{id}
+
+🔒 Bearer
+
+Delete an owned note
+
+<details> <summary><b>Create a note</b></summary>curl -X POST http://localhost:8085/notes \
   -H "Authorization: Bearer <access-token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -199,25 +294,12 @@ curl -X POST http://localhost:8085/notes \
     "content": "Define the service boundaries and deployment flow.",
     "color": 0
   }'
-```
 
-`Retrieve notes:`
 
-```bash
-curl http://localhost:8085/notes \
+</details> <details> <summary><b>Get notes</b></summary>curl http://localhost:8085/notes \
   -H "Authorization: Bearer <access-token>"
-```
 
-`Delete a note:`
 
-```bash
-curl -X DELETE http://localhost:8085/notes/<note-id> \
-  -H "Authorization: Bearer <access-token>"
-```
-
-`The note response includes:`
-
-```json
 {
   "id": "<mongo-object-id>",
   "title": "Project architecture",
@@ -225,117 +307,120 @@ curl -X DELETE http://localhost:8085/notes/<note-id> \
   "color": 0,
   "createdAt": "2026-01-01T12:00:00Z"
 }
-```
 
-## `Data Model`
 
-| `Collection`     | `Purpose`                                                       |
-| ---------------- | --------------------------------------------------------------- |
-| `users`          | `Email and BCrypt password hash`                                |
-| `refresh_tokens` | `User relationship, expiration, and hashed refresh-token value` |
-| `notes`          | `Note content, color, creation time, and owning user`           |
+</details> <details> <summary><b>Delete a note</b></summary>curl -X DELETE http://localhost:8085/notes/<note-id> \
+  -H "Authorization: Bearer <access-token>"
 
-## `Local Setup`
 
-### `Requirements`
+</details>🗄️ Data Model
 
-- `JDK 17`
-- `MongoDB instance`
-- `Gradle Wrapper (included)`
+Collection
 
-### `1. Configure MongoDB`
+Stores
 
-`Start MongoDB locally or provide a MongoDB connection URI.`
+users
 
-### `2. Create a JWT signing secret`
+Email and BCrypt password hash
 
-`Generate a Base64-encoded 256-bit secret:`
+refresh_tokens
 
-```bash
+Owning user, expiration, hashed token value
+
+notes
+
+Title, content, color, creation time, owning user
+
+⚙️ Local Setup
+
+Requirements
+
+☕ JDK 17
+
+🍃 MongoDB instance (local or Atlas)
+
+🐘 Gradle Wrapper (included)
+
+1. Start MongoDB
+
+docker run -d --name mongo -p 27017:27017 mongo
+
+
+Or use a MongoDB Atlas connection URI.
+
+2. Generate a JWT secret
+
 openssl rand -base64 32
-```
 
-### `3. Set environment variables`
 
-```bash
+3. Set environment variables
+
 export MONGODB_CONNECTION_STRING="mongodb://localhost:27017/notes"
 export JWT_SECRET_BASE64="<base64-encoded-secret>"
-```
 
-`The application reads both variables in application.properties.`
 
-| `Variable`                  | `Purpose`                         |
-| --------------------------- | --------------------------------- |
-| `MONGODB_CONNECTION_STRING` | `MongoDB connection URI`          |
-| `JWT_SECRET_BASE64`         | `Base64-encoded HMAC signing key` |
+Variable
 
-### `4. Run the service`
+Purpose
 
-```bash
+MONGODB_CONNECTION_STRING
+
+MongoDB connection URI
+
+JWT_SECRET_BASE64
+
+Base64-encoded HMAC signing key
+
+4. Run
+
 ./gradlew bootRun
-```
 
-`The API starts on port 8085 by default.`
 
-```text
-http://localhost:8085
-```
+🟢 The API starts on http://localhost:8085
 
-## `Build and Test`
+🧪 Build & Test
 
-`Run the test suite:`
+./gradlew test        # run tests
+./gradlew bootJar     # build executable JAR
 
-```bash
-./gradlew test
-```
 
-`Build an executable JAR:`
-
-```bash
-./gradlew bootJar
-```
-
-`The generated artifact is placed in:`
-
-```text
-build/libs/spring_boot_crash_course-0.0.1-SNAPSHOT.jar
-```
-
-`Run the JAR directly:`
-
-```bash
 java -jar build/libs/spring_boot_crash_course-0.0.1-SNAPSHOT.jar
-```
 
-## `Deployment`
 
-`The repository includes deployment assets for a Linux host:`
+🚀 Deployment
 
-- `.github/workflows/deploy.yml — builds and deploys on pushes to master`
-- `deployment/notes.service — systemd service definition`
-- `deployment/nginx-notes-config — Nginx reverse-proxy configuration`
+flowchart LR
+    P[git push to master] --> GA[GitHub Actions]
+    GA -->|build JAR| B[bootJar]
+    B -->|rsync over SSH| S[/opt/notes on server/]
+    S --> SD[systemctl restart notes.service]
+    SD --> NG[Nginx → live API]
 
-`The deployment workflow:`
 
-1. `Checks out the repository.`
-2. `Loads an SSH private key from the DEPLOY_KEY GitHub secret.`
-3. `Builds the executable JAR.`
-4. `Transfers it to /opt/notes.`
-5. `Restarts the notes.service systemd unit.`
+File
 
-`The server-side service reads runtime values from:`
+Purpose
 
-```text
-/etc/default/notes-env
-```
+.github/workflows/deploy.yml
 
-`That file should define MONGODB_CONNECTION_STRING and JWT_SECRET_BASE64.`
+Builds and deploys on pushes to 
 
-`Before production use, configure your server's domain and TLS certificate in Nginx and replace the example server settings in the deployment workflow and Nginx configuration.`
+master
 
-## `Project Structure`
+deployment/notes.service
 
-```text
+systemd service definition
+
+deployment/nginx-notes-config
+
+Nginx reverse-proxy configuration
+
+The server reads runtime values from /etc/default/notes-env, which must define MONGODB_CONNECTION_STRING and JWT_SECRET_BASE64. The SSH key is loaded from the DEPLOY_KEY GitHub secret.
+
+⚠️ Before production, configure your domain and TLS certificate in Nginx and replace the example server settings.
+
+📁 Project Structure
+
 src/main/kotlin/com/plcoding/spring_boot_crash_course/
 ├── controllers/
 │   ├── AuthController.kt
@@ -352,18 +437,36 @@ src/main/kotlin/com/plcoding/spring_boot_crash_course/
 │   └── SecurityConfig.kt
 ├── GlobalValidationHandler.kt
 └── SpringBootCrashCourseApplication.kt
-```
 
-## `Validation and Error Handling`
 
-`Bean validation produces a structured 400 response for invalid registration or note payloads:`
+⚠️ Error Handling
 
-```json
+Invalid payloads return a structured 400 response:
+
 {
   "errors": [
     "Password must be at least 9 characters long and contain at least one digit, uppercase and lowercase character."
   ]
 }
-```
 
-`Unauthorized protected requests receive HTTP 401. Invalid refresh tokens receive HTTP 401 with an explanatory response.`
+
+Case
+
+Status
+
+Invalid request body
+
+400 Bad Request
+
+Missing / invalid access token
+
+401 Unauthorized
+
+Invalid refresh token
+
+401 Unauthorized
+
+<div align="center">Made with ❤️ using Kotlin & Spring Boot
+
+</div>
+```
